@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Manage - Pharmacy</title>
+	<link rel="stylesheet" href="/static/style.css" />
+</head>
+
+<body>
+	<header>
+		<h1>Sales Billing</h1>
+		<nav class="menu-bar">
+			<a href="/static/index.html" class="menu-link">Dashboard</a>
+			<a href="/static/medicines.html" class="menu-link">Medicines</a>
+			<a href="/static/billing.html" class="menu-link">Billing</a>
+			<a href="/static/sales.html" class="menu-link">Sales</a>
+			<a href="/static/about.html" class="menu-link">About</a>
+			<button id="logout" class="btn" style="margin-left:auto;">Logout</button>
+		</nav>
+	</header>
+
+	<main>
+
+
+		<section id="billing-section" class="card">
+			<h2>Sales Billing</h2>
+			<div class="billing-controls" style="display: flex; flex-wrap: wrap; gap: 12px;">
+					<div style="flex:1; min-width:180px;">
+						<label for="customer_name">Customer Name</label>
+						<input type="text" id="customer_name" placeholder="Type to search or add customer" autocomplete="off" />
+					</div>
+					<div style="flex:1; min-width:180px;">
+						<label for="customer_number">Customer Number</label>
+						<input type="text" id="customer_number" placeholder="Enter phone number" autocomplete="off" />
+					</div>
+					<div style="flex:2; min-width:220px;">
+						<label for="customer_address">Customer Address</label>
+						<input type="text" id="customer_address" placeholder="Enter address" autocomplete="off" />
+					</div>
+					<div id="customer-suggestions" class="suggestions" style="flex-basis:100%;"></div>
+				</div>
+					<div style="margin: 16px 0;">
+						<label for="medicine_search">Search Medicine</label>
+						<input type="text" id="medicine_search" placeholder="Type medicine name..." autocomplete="off" style="width: 100%; max-width: 400px;" />
+						<div id="medicine-suggestions" class="suggestions"></div>
+						<div id="add-medicine-to-bill" style="display:none; margin-top:8px;">
+							<span id="selected-medicine-name"></span>
+							<input type="number" id="selected-medicine-qty" min="1" value="1" style="width:80px; margin-left:8px;" />
+							<button class="btn primary" id="add-medicine-btn">Add to Bill</button>
+						</div>
+					</div>
+				<table class="table" id="current-bill">
+					<thead>
+						<tr>
+							<th>Item</th>
+							<th>Qty</th>
+							<th>Price (₹)</th>
+							<th>Total (₹)</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody></tbody>
+					<tfoot>
+						<tr>
+							<td colspan="3" class="right">Grand Total</td>
+							<td id="grand-total">₹0.00</td>
+							<td></td>
+						</tr>
+					</tfoot>
+				</table>
+			<div class="form-actions">
+				<button id="finalize-sale" class="btn success">Finalize Sale</button>
+			</div>
+		</section>
+
+
+	</main>
+
+	<footer>
+		<p>&copy; 2025 Sanskar Surag. All rights reserved.</p>
+		<p>Pharmacy Management System - Developed by Sanskar Surag</p>
+	</footer>
+
+		<script src="/static/script.js"></script>
+		<script>
+			let medicinesList = [];
+			let selectedMedicine = null;
+			let billItems = [];
+
+			async function fetchMedicines() {
+				const res = await fetch('/api/medicines');
+				const json = await res.json();
+				if (json.success) medicinesList = json.data || [];
+			}
+
+			function showMedicineSuggestions(query) {
+				const suggestions = document.getElementById('medicine-suggestions');
+				suggestions.innerHTML = '';
+				if (!query) return;
+				const matches = medicinesList.filter(m => m.name.toLowerCase().includes(query.toLowerCase()));
+				matches.forEach(med => {
+					const div = document.createElement('div');
+					div.textContent = `${med.name} (${med.manufacturer})`;
+					div.className = 'suggestion-item';
+					div.style.cursor = 'pointer';
+					div.onclick = () => selectMedicineForBill(med);
+					suggestions.appendChild(div);
+				});
+			}
+
+			function selectMedicineForBill(med) {
+				selectedMedicine = med;
+				document.getElementById('selected-medicine-name').textContent = `${med.name} (₹${med.price})`;
+				document.getElementById('add-medicine-to-bill').style.display = '';
+				document.getElementById('medicine-suggestions').innerHTML = '';
+				document.getElementById('medicine_search').value = med.name;
+				document.getElementById('selected-medicine-qty').value = 1;
+			}
+
+			function addMedicineToBill() {
+				if (!selectedMedicine) return;
+				const qty = Number(document.getElementById('selected-medicine-qty').value);
+				if (qty < 1) return;
+				const existing = billItems.find(i => i.medicine_id === selectedMedicine.id);
+				if (existing) {
+					existing.quantity += qty;
+				} else {
+					billItems.push({
+						medicine_id: selectedMedicine.id,
+						name: selectedMedicine.name,
+						price: selectedMedicine.price,
+						quantity: qty
+					});
+				}
+				renderBill();
+				document.getElementById('add-medicine-to-bill').style.display = 'none';
+				document.getElementById('medicine_search').value = '';
+				selectedMedicine = null;
+			}
+
+			function renderBill() {
+				const tbody = document.querySelector('#current-bill tbody');
+				tbody.innerHTML = '';
+				let grand = 0;
+				billItems.forEach(item => {
+					const lineTotal = item.quantity * Number(item.price);
+					grand += lineTotal;
+					const tr = document.createElement('tr');
+					tr.innerHTML = `
+						<td>${item.name}</td>
+						<td>${item.quantity}</td>
+						<td>₹${Number(item.price).toFixed(2)}</td>
+						<td>₹${Number(lineTotal).toFixed(2)}</td>
+						<td><button class="btn" onclick="removeBillItem(${item.medicine_id})">Remove</button></td>
+					`;
+					tbody.appendChild(tr);
+				});
+				document.getElementById('grand-total').textContent = '₹' + grand.toFixed(2);
+			}
+
+			window.removeBillItem = function(id) {
+				billItems = billItems.filter(i => i.medicine_id !== id);
+				renderBill();
+			}
+
+			document.addEventListener('DOMContentLoaded', async () => {
+				await fetchMedicines();
+				document.getElementById('medicine_search').addEventListener('input', e => {
+					showMedicineSuggestions(e.target.value);
+				});
+				document.getElementById('add-medicine-btn').addEventListener('click', addMedicineToBill);
+			});
+		</script>
+</body>
+</html>
+
+
+
+

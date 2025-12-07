@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>About - Pharmacy Management System</title>
+	<link rel="stylesheet" href="/static/style.css" />
+	<style>
+		.about-container {
+			max-width: 900px;
+			margin: 0 auto;
+		}
+		.about-section {
+			background: var(--panel);
+			border: 1px solid var(--border);
+			border-radius: 12px;
+			padding: 32px;
+			margin-bottom: 24px;
+			box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+		}
+		.about-section h2 {
+			color: var(--primary);
+			margin-top: 0;
+			margin-bottom: 16px;
+			font-size: 24px;
+		}
+		.about-section p {
+			line-height: 1.8;
+			color: var(--text);
+			margin-bottom: 16px;
+		}
+		.developer-info {
+			display: flex;
+			align-items: center;
+			gap: 24px;
+			padding: 24px;
+			background: linear-gradient(180deg, #ecfeff, #f0fdf4);
+			border: 1px solid #bbf7d0;
+			border-radius: 12px;
+			margin-bottom: 24px;
+		}
+		.developer-details h3 {
+			margin: 0 0 8px 0;
+			color: var(--text);
+			font-size: 28px;
+		}
+		.developer-details p {
+			margin: 4px 0;
+			color: var(--muted);
+		}
+		.tech-stack {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+			gap: 12px;
+			margin-top: 16px;
+		}
+		.tech-item {
+			padding: 12px;
+			background: #f8fafc;
+			border: 1px solid var(--border);
+			border-radius: 8px;
+			text-align: center;
+		}
+		.tech-item strong {
+			display: block;
+			margin-bottom: 4px;
+			color: var(--primary);
+		}
+		.copyright-notice {
+			text-align: center;
+			padding: 16px;
+			background: #f1f5f9;
+			border-radius: 8px;
+			margin-top: 24px;
+		}
+		.copyright-notice p {
+			margin: 4px 0;
+			color: var(--muted);
+			font-size: 14px;
+		}
+	</style>
+</head>
+<body>
+	<header>
+		<h1>About</h1>
+		<nav class="menu-bar">
+			<a href="/static/index.html" class="menu-link">Dashboard</a>
+			<a href="/static/medicines.html" class="menu-link">Medicines</a>
+			<a href="/static/billing.html" class="menu-link">Billing</a>
+			<a href="/static/sales.html" class="menu-link">Sales</a>
+			<a href="/static/about.html" class="menu-link active">About</a>
+			<button id="logout" class="btn" style="margin-left:auto;">Logout</button>
+		</nav>
+	</header>
+
+	<main>
+		<div class="about-container">
+			<section class="about-section">
+				<h2>About This Project</h2>
+				<p>
+					This Pharmacy Management System is a comprehensive web application designed to streamline 
+					pharmacy operations including inventory management, billing, and sales tracking. The system 
+					provides an intuitive interface for managing medicines, processing sales, and generating reports.
+				</p>
+				<p>
+					Built with modern web technologies, this system offers real-time inventory tracking, 
+					automated billing, and detailed sales analytics to help pharmacy owners manage their 
+					business efficiently.
+				</p>
+			</section>
+
+			<section class="about-section">
+				<div class="developer-info">
+					<div class="developer-details">
+						<h3>Sanskar Surag</h3>
+						<p><strong>Developer & Creator</strong></p>
+						<p>Full-stack developer passionate about creating efficient and user-friendly applications.</p>
+					</div>
+				</div>
+			</section>
+
+			<section class="about-section">
+				<h2>Features</h2>
+				<ul style="line-height: 2; color: var(--text);">
+					<li>Medicine inventory management with stock tracking</li>
+					<li>Real-time billing and sales processing</li>
+					<li>Sales history and reporting</li>
+					<li>Low stock alerts</li>
+					<li>Customer information management</li>
+					<li>Export functionality for sales data</li>
+					<li>User authentication and role-based access</li>
+				</ul>
+			</section>
+
+			<section class="about-section">
+				<h2>Technology Stack</h2>
+				<div class="tech-stack">
+					<div class="tech-item">
+						<strong>Backend</strong>
+						<span>Python Flask</span>
+					</div>
+					<div class="tech-item">
+						<strong>Database</strong>
+						<span>SQLite</span>
+					</div>
+					<div class="tech-item">
+						<strong>Frontend</strong>
+						<span>HTML5, CSS3, JavaScript</span>
+					</div>
+					<div class="tech-item">
+						<strong>API</strong>
+						<span>RESTful API</span>
+					</div>
+				</div>
+			</section>
+
+			<div class="copyright-notice">
+				<p><strong>&copy; 2025 Sanskar Surag. All rights reserved.</strong></p>
+				<p>This project is developed and maintained by Sanskar Surag.</p>
+			</div>
+		</div>
+	</main>
+
+	<footer>
+		<p>&copy; 2025 Sanskar Surag. All rights reserved.</p>
+		<p>Pharmacy Management System - Developed by Sanskar Surag</p>
+	</footer>
+
+	<script>
+		// Session check and logout functionality
+		async function checkSessionOrRedirect() {
+			try {
+				const res = await fetch('/api/check_session');
+				const json = await res.json();
+				if (!json.logged_in) {
+					window.location.href = '/static/login.html';
+					return false;
+				}
+				return true;
+			} catch {
+				window.location.href = '/static/login.html';
+				return false;
+			}
+		}
+
+		async function logout() {
+			try {
+				await fetch('/api/logout');
+			} finally {
+				window.location.href = '/static/login.html';
+			}
+		}
+
+		document.addEventListener('DOMContentLoaded', async () => {
+			const ok = await checkSessionOrRedirect();
+			if (!ok) return;
+
+			const logoutBtn = document.querySelector('#logout');
+			if (logoutBtn) logoutBtn.addEventListener('click', logout);
+		});
+	</script>
+</body>
+</html>

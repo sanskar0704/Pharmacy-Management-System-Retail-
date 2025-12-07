@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Sales - Pharmacy</title>
+	<link rel="stylesheet" href="/static/style.css" />
+</head>
+
+<body>
+	<header>
+		<h1>Sales</h1>
+		<nav class="menu-bar">
+			<a href="/static/index.html" class="menu-link">Dashboard</a>
+			<a href="/static/medicines.html" class="menu-link">Medicines</a>
+			<a href="/static/billing.html" class="menu-link">Billing</a>
+			<a href="/static/sales.html" class="menu-link">Sales</a>
+			<a href="/static/about.html" class="menu-link">About</a>
+			<button id="logout" class="btn" style="margin-left:auto;">Logout</button>
+		</nav>
+	</header>
+
+	<main>
+		<!-- Sales Records Menu -->
+		<section class="card">
+			<h2>Sales Records</h2>
+			<div class="sales-controls" style="display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; align-items: end;">
+				<div style="flex: 1; min-width: 200px;">
+					<label for="date-from">From Date</label>
+					<input type="date" id="date-from" style="width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px;">
+				</div>
+				<div style="flex: 1; min-width: 200px;">
+					<label for="date-to">To Date</label>
+					<input type="date" id="date-to" style="width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px;">
+				</div>
+				<div style="flex: 1; min-width: 200px;">
+					<label for="search-customer">Search Customer</label>
+					<input type="text" id="search-customer" placeholder="Customer name..." style="width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px;">
+				</div>
+				<div style="display: flex; gap: 8px;">
+					<button id="filter-sales" class="btn primary">Filter</button>
+					<button id="clear-filters" class="btn">Clear</button>
+					<button id="export-sales" class="btn success">Export</button>
+				</div>
+			</div>
+			
+			<!-- Sales Summary -->
+			<div class="sales-summary" style="display: flex; gap: 20px; margin-bottom: 20px; padding: 16px; background: #f8fafc; border-radius: 8px; flex-wrap: wrap;">
+				<div>
+					<strong>Total Sales:</strong> <span id="total-sales-count">0</span>
+				</div>
+				<div>
+					<strong>Total Amount:</strong> ₹<span id="total-sales-amount">0.00</span>
+				</div>
+				<div>
+					<strong>Average Sale:</strong> ₹<span id="average-sale">0.00</span>
+				</div>
+			</div>
+
+			<table class="table" id="sales-table">
+				<thead>
+					<tr>
+						<th>ID</th>
+						<th>Customer</th>
+						<th>Date</th>
+						<th>Items</th>
+						<th>Total</th>
+						<th>Action</th>
+					</tr>
+				</thead>
+				<tbody></tbody>
+			</table>
+		</section>
+
+		<section class="card">
+			<h2>Sale Details</h2>
+			<div id="sale-details"></div>
+		</section>
+	</main>
+
+	<footer>
+		<p>&copy; 2025 Sanskar Surag. All rights reserved.</p>
+		<p>Pharmacy Management System - Developed by Sanskar Surag</p>
+	</footer>
+
+	<script src="/static/script.js"></script>
+	<script>
+		let allSales = [];
+		let filteredSales = [];
+
+		// Session check and logout functionality
+		async function checkSessionOrRedirect() {
+			try {
+				const res = await fetch('/api/check_session');
+				const json = await res.json();
+				if (!json.logged_in) {
+					window.location.href = '/static/login.html';
+					return false;
+				}
+				return true;
+			} catch {
+				window.location.href = '/static/login.html';
+				return false;
+			}
+		}
+
+		async function logout() {
+			try {
+				await fetch('/api/logout');
+			} finally {
+				window.location.href = '/static/login.html';
+			}
+		}
+
+		async function loadSales() {
+			try {
+				const res = await fetch('/api/sales');
+				const json = await res.json();
+				if (!json.success) return;
+				
+				allSales = json.data || [];
+				filteredSales = [...allSales];
+				renderSales();
+				updateSummary();
+			} catch (err) {
+				console.error('Error loading sales:', err);
+			}
+		}
+
+		function renderSales() {
+			const tbody = document.querySelector('#sales-table tbody');
+			tbody.innerHTML = '';
+			
+			if (filteredSales.length === 0) {
+				tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #666;">No sales found</td></tr>';
+				return;
+			}
+
+            for (const s of filteredSales) {
+				const tr = document.createElement('tr');
+				tr.innerHTML = `
+					<td>${s.id}</td>
+					<td>${s.customer_name || 'Walk-in Customer'}</td>
+					<td>${new Date(s.sale_date).toLocaleDateString()}</td>
+					<td class="right">${s.items_count || 0}</td>
+					<td class="right">₹${Number(s.total_amount||0).toFixed(2)}</td>
+                    <td>
+                      <button class="btn" data-view="${s.id}">View Details</button>
+                      <button class="btn" data-print="${s.id}" style="margin-left:6px;">Print</button>
+                    </td>
+				`;
+				tbody.appendChild(tr);
+			}
+			
+            document.querySelectorAll('[data-view]').forEach((btn) => {
+				btn.addEventListener('click', () => viewSale(btn.getAttribute('data-view')));
+			});
+
+            document.querySelectorAll('[data-print]').forEach((btn) => {
+                btn.addEventListener('click', async () => {
+                    const saleId = btn.getAttribute('data-print');
+                    if (!saleId) return;
+                    try {
+                        const res = await fetch(`/api/sales/${saleId}`);
+                        const json = await res.json();
+                        if (!json.success) return alert('Failed to load sale');
+                        const d = json.data;
+                        const rows = d.items.map(i => `
+                            <tr>
+                                <td>${i.medicine_name}</td>
+                                <td class=\"right\">${i.quantity_sold}</td>
+                                <td class=\"right\">₹${Number(i.price_per_item).toFixed(2)}</td>
+                                <td class=\"right\">₹${Number(i.line_total).toFixed(2)}</td>
+                            </tr>
+                        `).join('');
+                        const html = `<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Bill #${d.header.id}</title><style>body{font-family:Arial,sans-serif;margin:24px}.title{text-align:center;font-size:18px;font-weight:700;margin-bottom:4px}.sub{text-align:center;font-size:12px;color:#555;margin-bottom:16px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:6px;font-size:12px}th{background:#f5f5f5;text-align:left}.right{text-align:right}.footer{margin-top:16px;font-size:12px;text-align:center;color:#666}@media print{button{display:none}}</style></head><body><div class=\"title\">Pharmacy Management System</div><div class=\"sub\">Bill #${d.header.id} • ${new Date(d.header.sale_date).toLocaleString()} • ${d.header.customer_name || 'Walk-in Customer'}</div><table><thead><tr><th>Item</th><th class=\"right\">Qty</th><th class=\"right\">Price</th><th class=\"right\">Total</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan=\"3\" class=\"right\"><strong>Grand Total</strong></td><td class=\"right\"><strong>₹${Number(d.header.total_amount).toFixed(2)}</strong></td></tr></tfoot></table><div class=\"footer\">Thank you for your purchase!</div><button onclick=\"window.print()\">Print</button></body></html>`;
+                        const w = window.open('', '_blank');
+                        if (!w) return alert('Popup blocked. Please allow popups to print.');
+                        w.document.open();
+                        w.document.write(html);
+                        w.document.close();
+                        w.onload = () => w.print();
+                    } catch (e) {
+                        alert('Unable to print bill');
+                    }
+                });
+            });
+		}
+
+		function updateSummary() {
+			const totalCount = filteredSales.length;
+			const totalAmount = filteredSales.reduce((sum, sale) => sum + (Number(sale.total_amount) || 0), 0);
+			const averageSale = totalCount > 0 ? totalAmount / totalCount : 0;
+
+			document.querySelector('#total-sales-count').textContent = totalCount;
+			document.querySelector('#total-sales-amount').textContent = totalAmount.toFixed(2);
+			document.querySelector('#average-sale').textContent = averageSale.toFixed(2);
+		}
+
+		function filterSales() {
+			const fromDate = document.querySelector('#date-from').value;
+			const toDate = document.querySelector('#date-to').value;
+			const searchCustomer = document.querySelector('#search-customer').value.toLowerCase();
+
+			filteredSales = allSales.filter(sale => {
+				const saleDate = new Date(sale.sale_date);
+				const from = fromDate ? new Date(fromDate) : null;
+				const to = toDate ? new Date(toDate) : null;
+				
+				const dateMatch = (!from || saleDate >= from) && (!to || saleDate <= to);
+				const customerMatch = !searchCustomer || (sale.customer_name || '').toLowerCase().includes(searchCustomer);
+				
+				return dateMatch && customerMatch;
+			});
+
+			renderSales();
+			updateSummary();
+		}
+
+		function clearFilters() {
+			document.querySelector('#date-from').value = '';
+			document.querySelector('#date-to').value = '';
+			document.querySelector('#search-customer').value = '';
+			filteredSales = [...allSales];
+			renderSales();
+			updateSummary();
+		}
+
+		function exportSales() {
+			if (filteredSales.length === 0) {
+				alert('No sales data to export');
+				return;
+			}
+
+			const csvContent = [
+				['Sale ID', 'Customer', 'Date', 'Items', 'Total Amount'],
+				...filteredSales.map(sale => [
+					sale.id,
+					sale.customer_name || 'Walk-in Customer',
+					new Date(sale.sale_date).toLocaleDateString(),
+					sale.items_count || 0,
+					Number(sale.total_amount || 0).toFixed(2)
+				])
+			].map(row => row.join(',')).join('\n');
+
+			const blob = new Blob([csvContent], { type: 'text/csv' });
+			const url = window.URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = `sales_export_${new Date().toISOString().split('T')[0]}.csv`;
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			window.URL.revokeObjectURL(url);
+		}
+
+		async function viewSale(id) {
+			try {
+				const res = await fetch(`/api/sales/${id}`);
+				const json = await res.json();
+				if (!json.success) return;
+				
+				const d = json.data;
+				const container = document.querySelector('#sale-details');
+				const lines = d.items.map(i => `
+					<tr>
+						<td>${i.medicine_name}</td>
+						<td class="right">${i.quantity_sold}</td>
+						<td class="right">₹${Number(i.price_per_item).toFixed(2)}</td>
+						<td class="right">₹${Number(i.line_total).toFixed(2)}</td>
+					</tr>
+				`).join('');
+				
+				container.innerHTML = `
+					<div class="tag" style="margin-bottom: 16px; padding: 12px; background: #e3f2fd; border-radius: 6px;">
+						<strong>Sale #${d.header.id}</strong> - ${d.header.customer_name || 'Walk-in Customer'} - ${new Date(d.header.sale_date).toLocaleString()}
+					</div>
+					<table class="table">
+						<thead>
+							<tr>
+								<th>Item</th>
+								<th class="right">Qty</th>
+								<th class="right">Price (₹)</th>
+								<th class="right">Total (₹)</th>
+							</tr>
+						</thead>
+						<tbody>${lines}</tbody>
+						<tfoot>
+							<tr style="font-weight: bold; background: #f8fafc;">
+								<td colspan="3" class="right">Grand Total</td>
+								<td class="right">₹${Number(d.header.total_amount).toFixed(2)}</td>
+							</tr>
+						</tfoot>
+					</table>
+				`;
+			} catch (err) {
+				console.error('Error viewing sale:', err);
+				alert('Error loading sale details');
+			}
+		}
+
+		// Handle URL parameters
+		function handleURLParams() {
+			const urlParams = new URLSearchParams(window.location.search);
+			const fromDate = urlParams.get('from');
+			const toDate = urlParams.get('to');
+			const exportFlag = window.location.hash === '#export';
+			const hash = window.location.hash || '';
+			if (hash.startsWith('#print=')) {
+				const saleId = hash.split('=')[1];
+				if (saleId) {
+					// fetch and print the sale, then clear hash
+					viewSale(saleId).then(() => {
+						setTimeout(async () => {
+							try {
+								const res = await fetch(`/api/sales/${saleId}`);
+								const json = await res.json();
+								if (json.success) {
+									const html = (function(){
+										const d = json.data;
+										const rows = d.items.map(i => `
+											<tr>
+												<td>${i.medicine_name}</td>
+												<td class=\"right\">${i.quantity_sold}</td>
+												<td class=\"right\">₹${Number(i.price_per_item).toFixed(2)}</td>
+												<td class=\"right\">₹${Number(i.line_total).toFixed(2)}</td>
+											</tr>`).join('');
+										return `<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Bill #${d.header.id}</title><style>body{font-family:Arial,sans-serif;margin:24px}.title{text-align:center;font-size:18px;font-weight:700;margin-bottom:4px}.sub{text-align:center;font-size:12px;color:#555;margin-bottom:16px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:6px;font-size:12px}th{background:#f5f5f5;text-align:left}.right{text-align:right}.footer{margin-top:16px;font-size:12px;text-align:center;color:#666}@media print{button{display:none}}</style></head><body><div class=\"title\">Pharmacy Management System</div><div class=\"sub\">Bill #${d.header.id} • ${new Date(d.header.sale_date).toLocaleString()} • ${d.header.customer_name || 'Walk-in Customer'}</div><table><thead><tr><th>Item</th><th class=\"right\">Qty</th><th class=\"right\">Price</th><th class=\"right\">Total</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan=\"3\" class=\"right\"><strong>Grand Total</strong></td><td class=\"right\"><strong>₹${Number(d.header.total_amount).toFixed(2)}</strong></td></tr></tfoot></table><div class=\"footer\">Thank you for your purchase!</div><button onclick=\"window.print()\">Print</button></body></html>`;
+									})();
+									const w = window.open('', '_blank');
+									if (w) {
+										w.document.open();
+										w.document.write(html);
+										w.document.close();
+										w.onload = () => w.print();
+									}
+								}
+							} catch (e) {}
+							window.location.hash = '';
+						}, 300);
+					});
+				}
+			}
+
+			if (fromDate) {
+				document.querySelector('#date-from').value = fromDate;
+			}
+			if (toDate) {
+				document.querySelector('#date-to').value = toDate;
+			}
+			if (exportFlag) {
+				// Auto-export when coming from dashboard
+				setTimeout(() => {
+					exportSales();
+					window.location.hash = ''; // Clear hash
+				}, 1000);
+			}
+		}
+
+		document.addEventListener('DOMContentLoaded', async () => {
+			const isLoggedIn = await checkSessionOrRedirect();
+			if (!isLoggedIn) return;
+
+			// Handle URL parameters first
+			handleURLParams();
+
+			// Set default date range to last 30 days if no URL params
+			if (!document.querySelector('#date-from').value) {
+				const today = new Date();
+				const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
+				document.querySelector('#date-to').value = today.toISOString().split('T')[0];
+				document.querySelector('#date-from').value = thirtyDaysAgo.toISOString().split('T')[0];
+			}
+
+			// Event listeners
+			document.querySelector('#logout').addEventListener('click', logout);
+			document.querySelector('#filter-sales').addEventListener('click', filterSales);
+			document.querySelector('#clear-filters').addEventListener('click', clearFilters);
+			document.querySelector('#export-sales').addEventListener('click', exportSales);
+			
+			// Auto-filter on search
+			document.querySelector('#search-customer').addEventListener('input', filterSales);
+
+			await loadSales();
+		});
+	</script>
+</body>
+</html>
+
+
+

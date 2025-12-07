@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Pharmacy Retail POS</title>
+	<link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header>
+    <h1>Sales Billing System</h1>
+    <nav class="menu-bar">
+      <a href="/static/index.html" class="menu-link">Dashboard</a>
+      <a href="/static/medicines.html" class="menu-link">Medicines</a>
+      <a href="/static/billing.html" class="menu-link">Billing</a>
+      <a href="/static/sales.html" class="menu-link">Sales</a>
+      <a href="/static/about.html" class="menu-link">About</a>
+      
+      <button id="logout" class="btn" style="margin-left:auto;">Logout</button>
+    </nav>
+  </header>
+
+  <main>
+    <section class="dashboard">
+      <div class="kpi">
+        <img src="/static/assets/medicines.png" alt="Medicines" onerror="this.style.display='none'" />
+        <div>
+          <h3>Total Medicines</h3>
+          <div class="value" id="kpi-total-medicines">0</div>
+        </div>
+      </div>
+      <div class="kpi">
+        <img src="/static/assets/stock.png" alt="Stock" onerror="this.style.display='none'" />
+        <div>
+          <h3>Total Units</h3>
+          <div class="value" id="kpi-total-units">0</div>
+        </div>
+      </div>
+      <div class="kpi">
+        <img src="/static/assets/warning.png" alt="Low Stock" onerror="this.style.display='none'" />
+        <div>
+          <h3>Low Stock Items</h3>
+          <div class="value" id="kpi-low-stock">0</div>
+        </div>
+      </div>
+      <div class="kpi">
+        <img src="/static/assets/sales.png" alt="Sales" onerror="this.style.display='none'" />
+        <div>
+          <h3>Sales Today</h3>
+          <div class="value" id="kpi-sales-today">0.00</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top: 24px;">
+      <h2>Quick Links</h2>
+      <div class="quick-links">
+        <a href="/static/medicines.html" class="btn primary">Manage Medicines</a>
+        <a href="/static/billing.html" class="btn success">New Sale / Billing</a>
+        <a href="/static/sales.html" class="btn">Sales Records</a>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top: 24px;">
+      <h2>Sales Records Menu</h2>
+      <div class="sales-menu" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+        <div class="menu-item" style="padding: 16px; border: 1px solid #e2e8f0; border-radius: 8px; text-align: center;">
+          <h3 style="margin: 0 0 8px 0; color: #2563eb;">📊 All Sales</h3>
+          <p style="margin: 0 0 12px 0; color: #666;">View complete sales history</p>
+          <a href="/static/sales.html" class="btn" style="width: 100%;">View All Sales</a>
+        </div>
+        
+        <div class="menu-item" style="padding: 16px; border: 1px solid #e2e8f0; border-radius: 8px; text-align: center;">
+          <h3 style="margin: 0 0 8px 0; color: #059669;">📅 Today's Sales</h3>
+          <p style="margin: 0 0 12px 0; color: #666;">Filter by today's date</p>
+          <button onclick="filterTodaySales()" class="btn success" style="width: 100%;">Today's Sales</button>
+        </div>
+        
+        <div class="menu-item" style="padding: 16px; border: 1px solid #e2e8f0; border-radius: 8px; text-align: center;">
+          <h3 style="margin: 0 0 8px 0; color: #dc2626;">📈 Sales Report</h3>
+          <p style="margin: 0 0 12px 0; color: #666;">Export and analyze sales data</p>
+          <button onclick="exportSalesReport()" class="btn" style="width: 100%;">Export Report</button>
+        </div>
+        
+        <div class="menu-item" style="padding: 16px; border: 1px solid #e2e8f0; border-radius: 8px; text-align: center;">
+          <h3 style="margin: 0 0 8px 0; color: #7c3aed;">🔍 Search Sales</h3>
+          <p style="margin: 0 0 12px 0; color: #666;">Find specific sales records</p>
+          <a href="/static/sales.html" class="btn" style="width: 100%;">Search Sales</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 Sanskar Surag. All rights reserved.</p>
+    <p>Pharmacy Management System - Developed by Sanskar Surag</p>
+  </footer>
+
+  <script>
+    // Minimal dashboard loader: reuse existing summary endpoint and session check
+    async function checkSessionOrRedirect() {
+      try {
+        const res = await fetch('/api/check_session');
+        const json = await res.json();
+        if (!json.logged_in) { window.location.href = '/static/login.html'; }
+      } catch { window.location.href = '/static/login.html'; }
+    }
+    async function logout() { try { await fetch('/api/logout'); } finally { window.location.href = '/static/login.html'; } }
+    async function loadSummary() {
+      try {
+        const res = await fetch('/api/summary');
+        const json = await res.json();
+        if (!json.success) return;
+        const d = json.data || {};
+        document.querySelector('#kpi-total-medicines').textContent = d.total_medicines ?? 0;
+        document.querySelector('#kpi-total-units').textContent = d.total_units ?? 0;
+        document.querySelector('#kpi-low-stock').textContent = d.low_stock ?? 0;
+        document.querySelector('#kpi-sales-today').textContent = Number(d.sales_today || 0).toFixed(2);
+      } catch {}
+    }
+    // Sales menu functions
+    function filterTodaySales() {
+      const today = new Date().toISOString().split('T')[0];
+      window.location.href = `/static/sales.html?from=${today}&to=${today}`;
+    }
+
+    function exportSalesReport() {
+      window.location.href = '/static/sales.html#export';
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      await checkSessionOrRedirect();
+      document.querySelector('#logout').addEventListener('click', logout);
+      loadSummary();
+    });
+  </script>
+</body>
+</html>
+
+

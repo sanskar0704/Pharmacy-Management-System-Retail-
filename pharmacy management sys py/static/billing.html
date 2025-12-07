@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Billing - Pharmacy</title>
+	<link rel="stylesheet" href="/static/style.css" />
+</head>
+
+<body>
+	<header>
+		<h1>Billing</h1>
+		<nav class="menu-bar">
+			<a href="/static/index.html" class="menu-link">Dashboard</a>
+			<a href="/static/medicines.html" class="menu-link">Medicines</a>
+			<a href="/static/billing.html" class="menu-link">Billing</a>
+			<a href="/static/sales.html" class="menu-link">Sales</a>
+			<a href="/static/about.html" class="menu-link">About</a>
+
+			<button id="logout" class="btn" style="margin-left:auto;">Logout</button>
+		</nav>
+	</header>
+
+	<main>
+		<section id="billing-section" class="card" style="max-width:900px;margin:auto;box-shadow:0 2px 12px #0001;">
+			<h2 style="margin-bottom:16px;">Pharmacy Billing</h2>
+			
+			<!-- Customer Details -->
+			<div class="customer-details" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:18px;">
+				<div style="flex:1;min-width:180px;">
+					<label for="customer_name">Customer Name</label>
+					<input type="text" id="customer_name" placeholder="Enter customer name" autocomplete="off" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:6px;" />
+				</div>
+				<div style="flex:1;min-width:180px;">
+					<label for="customer_number">Phone Number</label>
+					<input type="text" id="customer_number" placeholder="Enter phone number" autocomplete="off" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:6px;" />
+				</div>
+				<div style="flex:2;min-width:220px;">
+					<label for="customer_address">Address</label>
+					<input type="text" id="customer_address" placeholder="Enter address" autocomplete="off" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:6px;" />
+				</div>
+			</div>
+			
+			<!-- Medicine Search -->
+			<div class="medicine-search" style="margin-bottom:18px;position:relative;">
+				<input type="text" id="medicine_search" placeholder="Search medicine by name..." autocomplete="off" style="width:100%;max-width:400px;padding:8px;border:1px solid #e2e8f0;border-radius:6px;" />
+				<div id="medicine-suggestions" class="suggestions"></div>
+			</div>
+			<div class="bill-table-wrapper" style="overflow-x:auto;">
+				<table class="table" id="current-bill">
+					<thead>
+						<tr>
+							<th>Item</th>
+							<th>Qty</th>
+							<th>Price (₹)</th>
+							<th>Total (₹)</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody></tbody>
+					<tfoot>
+						<tr>
+							<td colspan="3" class="right">Grand Total</td>
+							<td id="grand-total">₹0.00</td>
+							<td></td>
+						</tr>
+					</tfoot>
+				</table>
+			</div>
+            <div class="form-actions" style="margin-top:18px;text-align:right;">
+                <button id="finalize-sale" class="btn success" style="font-size:1.1em;padding:8px 24px;">Finalize Sale</button>
+            </div>
+		</section>
+	</main>
+
+	<footer>
+		<p>&copy; 2025 Sanskar Surag. All rights reserved.</p>
+		<p>Pharmacy Management System - Developed by Sanskar Surag</p>
+	</footer>
+
+	<script src="/static/script.js"></script>
+	<script>
+		// Session check and logout functionality
+		async function checkSessionOrRedirect() {
+			try {
+				const res = await fetch('/api/check_session');
+				const json = await res.json();
+				if (!json.logged_in) {
+					window.location.href = '/static/login.html';
+					return false;
+				}
+				return true;
+			} catch {
+				window.location.href = '/static/login.html';
+				return false;
+			}
+		}
+
+		async function logout() {
+			try {
+				await fetch('/api/logout');
+			} finally {
+				window.location.href = '/static/login.html';
+			}
+		}
+
+		document.addEventListener('DOMContentLoaded', async () => {
+			const ok = await checkSessionOrRedirect();
+			if (!ok) return;
+
+			// Attach logout if present
+			const logoutBtn = document.querySelector('#logout');
+			if (logoutBtn) logoutBtn.addEventListener('click', logout);
+		});
+	</script>
+</body>
+</html>
+
+
+
+

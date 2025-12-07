@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Medicines - Pharmacy</title>
+	<link rel="stylesheet" href="/static/style.css" />
+</head>
+
+<body>
+	<header>
+		<h1>Medicines</h1>
+		<nav class="menu-bar">
+			<a href="/static/index.html" class="menu-link">Dashboard</a>
+			<a href="/static/medicines.html" class="menu-link">Medicines</a>
+			<a href="/static/billing.html" class="menu-link">Billing</a>
+			<a href="/static/sales.html" class="menu-link">Sales</a>
+			<a href="/static/about.html" class="menu-link">About</a>
+			<!-- Reports removed -->
+			<button id="logout" class="btn" style="margin-left:auto;">Logout</button>
+		</nav>
+	</header>
+
+	<main>
+		<section id="inventory-section" class="card">
+			<h2>Medicines</h2>
+			<form id="add-medicine-form" class="grid-form">
+				<div>
+					<label for="name">Name</label>
+					<input type="text" id="name" name="name" placeholder="" required />
+				</div>
+				<div>
+					<label for="manufacturer">Manufacturer</label>
+					<input type="text" id="manufacturer" name="manufacturer" placeholder="" />
+				</div>
+				<div>
+					<label for="batch_no">Batch No</label>
+					<input type="text" id="batch_no" name="batch_no" placeholder="" />
+				</div>
+				<div>
+					<label for="expiry_date">Expiry Date</label>
+					<input type="date" id="expiry_date" name="expiry_date" />
+				</div>
+				<div>
+					<label for="quantity">Quantity</label>
+					<input type="number" id="quantity" name="quantity" value="0" min="0" />
+				</div>
+				<div>
+					<label for="price">Price</label>
+					<input type="number" step="0.01" id="price" name="price" value="0" min="0" />
+				</div>
+				<div class="form-actions">
+					<button type="submit" class="btn primary">Add Medicine</button>
+				</div>
+			</form>
+
+			<table class="table" id="inventory-table">
+				<thead>
+					<tr>
+						<th>Name</th>
+						<th>Manufacturer</th>
+						<th>Quantity</th>
+						<th>Price (₹)</th>
+					</tr>
+				</thead>
+				<tbody></tbody>
+			</table>
+		</section>
+	</main>
+
+	<footer>
+		<p>&copy; 2025 Sanskar Surag. All rights reserved.</p>
+		<p>Pharmacy Management System - Developed by Sanskar Surag</p>
+	</footer>
+
+	<script>
+	document.addEventListener('DOMContentLoaded', () => {
+		// Handle add medicine form submit
+		const form = document.getElementById('add-medicine-form');
+		const table = document.querySelector('#inventory-table tbody');
+		function refreshTable() {
+			fetch('/api/medicines').then(res => res.json()).then(json => {
+				if (!json.success) return;
+				table.innerHTML = '';
+				(json.data || []).forEach(med => {
+					const tr = document.createElement('tr');
+					tr.innerHTML = `
+						<td>${med.name}</td>
+						<td>${med.manufacturer || ''}</td>
+						<td><span class="tag">${med.quantity}</span></td>
+						<td>₹${Number(med.price).toFixed(2)}</td>
+					`;
+					table.appendChild(tr);
+				});
+			});
+		}
+		if (form) {
+			form.addEventListener('submit', async (e) => {
+				e.preventDefault();
+				const data = Object.fromEntries(new FormData(form).entries());
+				data.quantity = Number(data.quantity || 0);
+				data.price = Number(data.price || 0);
+				const res = await fetch('/api/medicines/add', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(data)
+				});
+				const json = await res.json();
+				if (json.success) {
+					form.reset();
+					refreshTable();
+					alert('Medicine added!');
+				} else {
+					alert(json.message || 'Failed to add medicine');
+				}
+			});
+		}
+		refreshTable();
+	});
+	</script>
+</body>
+</html>
+
+
+
